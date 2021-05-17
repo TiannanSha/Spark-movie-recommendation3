@@ -22,11 +22,6 @@ object Predictor {
     println("******************************************************")
 
     var conf = new Conf(args)
-    // conf object is not serializable, extract values that
-    // will be serialized with the parallelize implementations
-    val conf_users = conf.users()
-    val conf_movies = conf.movies()
-    val conf_k = conf.k()
 
     println("Loading training data from: " + conf.train())
     val read_start = System.nanoTime
