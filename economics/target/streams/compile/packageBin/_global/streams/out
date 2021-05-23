@@ -1,0 +1,13 @@
+[0m[[0m[0mdebug[0m] [0m[0mPackaging /Users/sha/IdeaProjects/cs449-template-m3/economics/target/scala-2.11/m3_yourid_2.11-1.0.jar ...[0m
+[0m[[0m[0mdebug[0m] [0m[0mInput file mappings:[0m
+[0m[[0m[0mdebug[0m] [0m[0m	Economics$.class[0m
+[0m[[0m[0mdebug[0m] [0m[0m	  /Users/sha/IdeaProjects/cs449-template-m3/economics/target/scala-2.11/classes/Economics$.class[0m
+[0m[[0m[0mdebug[0m] [0m[0m	Economics.class[0m
+[0m[[0m[0mdebug[0m] [0m[0m	  /Users/sha/IdeaProjects/cs449-template-m3/economics/target/scala-2.11/classes/Economics.class[0m
+[0m[[0m[0mdebug[0m] [0m[0m	Conf.class[0m
+[0m[[0m[0mdebug[0m] [0m[0m	  /Users/sha/IdeaProjects/cs449-template-m3/economics/target/scala-2.11/classes/Conf.class[0m
+[0m[[0m[0mdebug[0m] [0m[0m	Conf$$anonfun$1.class[0m
+[0m[[0m[0mdebug[0m] [0m[0m	  /Users/sha/IdeaProjects/cs449-template-m3/economics/target/scala-2.11/classes/Conf$$anonfun$1.class[0m
+[0m[[0m[0mdebug[0m] [0m[0m	Economics$$anonfun$printToFile$1$1.class[0m
+[0m[[0m[0mdebug[0m] [0m[0m	  /Users/sha/IdeaProjects/cs449-template-m3/economics/target/scala-2.11/classes/Economics$$anonfun$printToFile$1$1.class[0m
+[0m[[0m[0mdebug[0m] [0m[0mDone packaging.[0m

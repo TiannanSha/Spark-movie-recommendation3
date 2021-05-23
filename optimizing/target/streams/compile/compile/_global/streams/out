@@ -1,0 +1,4 @@
+[0m[[0m[31merror[0m] [0m[0m/Users/sha/IdeaProjects/cs449-template-m3/optimizing/src/main/scala/Predictor.scala:99:29: could not find implicit value for parameter op: breeze.linalg.operators.OpDiv.Impl2[breeze.linalg.CSCMatrix[Double],breeze.linalg.DenseVector[Double],That][0m
+[0m[[0m[31merror[0m] [0m[0m    val rcapui_m = rhatui_m /:/ denom_vec[0m
+[0m[[0m[31merror[0m] [0m[0m                            ^[0m
+[0m[[0m[31merror[0m] [0m[0mone error found[0m
