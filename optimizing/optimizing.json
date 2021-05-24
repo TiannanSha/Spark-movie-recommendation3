@@ -1,22 +1,22 @@
 {
   "Q3.3.1" : {
-    "MaeForK=100" : 0.0,
-    "MaeForK=200" : 0.0
+    "MaeForK=100" : 0.7562595282330156,
+    "MaeForK=200" : 0.748457048681886
   },
   "Q3.3.2" : {
     "DurationInMicrosecForComputingKNN" : {
-      "min" : 0.0,
-      "max" : 0.0,
-      "average" : 0.0,
-      "stddev" : 0.0
+      "min" : 250339.833,
+      "max" : 276198.167,
+      "average" : 259558.5916,
+      "stddev" : 8874.71365508025
     }
   },
   "Q3.3.3" : {
     "DurationInMicrosecForComputingPredictions" : {
-      "min" : 0.0,
-      "max" : 0.0,
-      "average" : 0.0,
-      "stddev" : 0.0
+      "min" : 1944222.167,
+      "max" : 2121985.0,
+      "average" : 2011919.9167999998,
+      "stddev" : 62524.86504102782
     }
   }
 }

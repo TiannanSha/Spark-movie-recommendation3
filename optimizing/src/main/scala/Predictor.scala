@@ -40,12 +40,10 @@ object Predictor {
     val read_duration = System.nanoTime - read_start
     println("Read data in " + (read_duration/pow(10.0,9)) + "s")
 
-    println("Compute kNN on train data...")
 
     // my code starts here
     val num_u = train.rows.toInt
     val num_i = train.cols.toInt
-    println(f"num_u = ${num_u}")
 
     // helper functions
     def scale(x:Double, ru:Double): Double = {
@@ -58,102 +56,88 @@ object Predictor {
       }
     }
 
-    val t = System.nanoTime()
 
     // *** calculate ru_， average rating for each user ***
-    var ru_arr = new Array[Double](num_u)   // user rating array
-    for (i <- ru_arr.indices) {ru_arr(i) = 0.0}
-    var counts = new Array[Int](num_u) // count number of ratings per user
-    for (i <- counts.indices) {counts(i) = 0}
-    for ((k,rui) <- train.activeIterator) {
-      val u = k._1
-      val i = k._2
-      ru_arr(u) += rui
-      counts(u) += 1
+    def avg_per_user(): Array[Double] = {
+      var ru_arr = new Array[Double](num_u) // user rating array
+      for (i <- ru_arr.indices) {
+        ru_arr(i) = 0.0
+      }
+      var counts = new Array[Int](num_u) // count number of ratings per user
+      for (i <- counts.indices) {
+        counts(i) = 0
+      }
+      for ((k, rui) <- train.activeIterator) {
+        val u = k._1
+        val i = k._2
+        ru_arr(u) += rui
+        counts(u) += 1
+      }
+      for (i <- ru_arr.indices) {
+        ru_arr(i) = ru_arr(i) / counts(i)
+      }
+      ru_arr
     }
-    for (i <- ru_arr.indices) {ru_arr(i) = ru_arr(i)/counts(i)}
-    //val ru_ = new DenseVector(ru_arr)
-    //println(s"ru_ = ${ru_}")
+
 
     //*** rhat_ui, each rating's normalized deviation ***
-    val rhatui_Builder = new CSCMatrix.Builder[Double](rows=num_u, cols=num_i)
-    for ((k,rui) <- train.activeIterator) {
-      val u = k._1
-      val i = k._2
-      val rhat_ui = (rui - ru_arr(u)) / scale(rui, ru_arr(u))
-      rhatui_Builder.add(u, i, rhat_ui)
+    def normDev(ru_arr: Array[Double]) = {
+      val rhatui_Builder = new CSCMatrix.Builder[Double](rows=num_u, cols=num_i)
+      for ((k,rui) <- train.activeIterator) {
+        val u = k._1
+        val i = k._2
+        val rhat_ui = (rui - ru_arr(u)) / scale(rui, ru_arr(u))
+        rhatui_Builder.add(u, i, rhat_ui)
+      }
+      rhatui_Builder.result()
     }
-    val rhatui_m = rhatui_Builder.result()
 
 
     // **** rcapui, the preprocessed rating ***
-    // calculate denom
-    var sumOfSqrs = new Array[Double](num_u)
-    for (i <- sumOfSqrs.indices) {sumOfSqrs(i) = 0.0}
-    for ((k,rhatui) <- rhatui_m.activeIterator) {
-      val u = k._1
-      val i = k._2
-      sumOfSqrs(u) += rhatui * rhatui
+    def preprocessRatings(rhatui_m: CSCMatrix[Double]) = {
+      var sumOfSqrs = new Array[Double](num_u)
+      for (i <- sumOfSqrs.indices) {sumOfSqrs(i) = 0.0}
+      for ((k,rhatui) <- rhatui_m.activeIterator) {
+        val u = k._1
+        val i = k._2
+        sumOfSqrs(u) += rhatui * rhatui
+      }
+      val rcapui_Builder = new CSCMatrix.Builder[Double](rows=num_u, cols=num_i)
+      for ((k,rhatui) <- rhatui_m.activeIterator) {
+        val u = k._1
+        val i = k._2
+        val rcap_ui = rhatui / math.sqrt(sumOfSqrs(u))
+        rcapui_Builder.add(u, i, rcap_ui)
+      }
+      rcapui_Builder.result()
     }
-    val rcapui_Builder = new CSCMatrix.Builder[Double](rows=num_u, cols=num_i)
-    for ((k,rhatui) <- rhatui_m.activeIterator) {
-      val u = k._1
-      val i = k._2
-      val rcap_ui = rhatui / math.sqrt(sumOfSqrs(u))
-      rcapui_Builder.add(u, i, rcap_ui)
-    }
-    val rcapui_m = rcapui_Builder.result()
-    //println(rcapui_m)
+
 
     // *** calculate similarities ***
-    val k = 200
-    val sims_Builder = new CSCMatrix.Builder[Double](rows=num_u, cols=num_u)
-    for (u <- 0 until rcapui_m.rows) {
-      val vec_for_u = rcapui_m(u, 0 until rcapui_m.cols).t.toDenseVector
-      val simVec_for_u = rcapui_m * vec_for_u
-      for (v <- argtopk(simVec_for_u, k+1)) {
-        //println(u,v, simVec_for_u(v))
-        if (u!=v) {
-          sims_Builder.add(u, v, simVec_for_u(v))
+    def knnSims(rcapui_m: CSCMatrix[Double], k:Int) = {
+      val sims_Builder = new CSCMatrix.Builder[Double](rows=num_u, cols=num_u)
+      for (u <- 0 until rcapui_m.rows) {
+        val vec_for_u = rcapui_m(u, 0 until rcapui_m.cols).t.toDenseVector
+        val simVec_for_u = rcapui_m * vec_for_u
+        for (v <- argtopk(simVec_for_u, k+1)) {
+          if (u!=v) {
+            sims_Builder.add(u, v, simVec_for_u(v))
+          }
         }
       }
+      sims_Builder.result()
     }
-    val sims_m = sims_Builder.result()
 
-    val duration_knnSims = (System.nanoTime() - t) / 1e9
-    println(f"duration_knnSims = $duration_knnSims")
+    // *** compute all sims from train ***
+    def knnSims_from_train(k:Int) = {
+      val ru_arr = avg_per_user()
+      val rhatui_m = normDev(ru_arr)
+      val rcapui_m = preprocessRatings(rhatui_m)
+      val sims_m = knnSims(rcapui_m, k)
+      (ru_arr, rhatui_m, rcapui_m, sims_m)
+    }
 
-    // *** compute rbarhat, the user-specific weighted-sum deviation, eq.2 in project2 ***
-//    val rbarhat_Builder = new CSCMatrix.Builder[Double](rows=num_u, cols=num_i)
-//    val eq2num = sims_m * rhatui_m
-//    val eq2denom = abs(sims_m) * rhatui_m.mapValues(rhatui => if (rhatui!=0) 1.0 else 0.0)
-//    //val rbarhat_m = eq2num /:/ eq2denom
-//    for ((k, numerator) <- eq2num.activeIterator) {
-//      val u = k._1
-//      val i = k._2
-//      // only need to add rbarhat if rbarhat is not zero
-//      if (eq2denom(u,i)!=0) {
-//        val rbarhat = numerator/eq2denom(u,i)
-//        rbarhat_Builder.add(u,i, rbarhat)
-//      }
-//    }
-//    val rbarhat_m = rbarhat_Builder.result()
-
-//    val rhat_ui_Builder = new CSCMatrix.Builder[Double](rows=train.rows, cols=train.cols)
-//    for ((k,rui) <- train.activeIterator) {
-//      val u = k._1
-//      val i = k._2
-//      val rhat_ui = (rui - ru_(u))/scale(rui, ru_(u))
-//      rhat_ui_Builder.add(u, i, rhat_ui)
-//    }
-//    val rhat_ui_s = rhat_ui_Builder.result()
-
-//    for ((k, rhat_ui) <- rhat_ui_s.activeIterator) {
-//      println((k._1, k._2, rhat_ui))
-//    }
-
-
-
+    // *** load test data ***
     println("Loading test data from: " + conf.test())
     val testFile = Source.fromFile(conf.test())
     val testBuilder = new CSCMatrix.Builder[Double](rows=conf.users(), cols=conf.movies())
@@ -164,41 +148,79 @@ object Predictor {
     val test = testBuilder.result()
     testFile.close
 
-    println("Compute predictions on test data...")
-    val t2 = System.nanoTime()
+
     // *** compute rbarhat, the user-specific weighted-sum deviation, eq.2 in project2
     // *** then compute pui
-    val pui_m = CSCMatrix.zeros[Double](test.rows, test.cols)  // maybe change to builder
-    for ((k, _) <- test.activeIterator) {
-      val u = k._1
-      val i = k._2
-      val sims_for_u = sims_m(u, 0 until sims_m.cols).t.toDenseVector.t
-      val rhats_for_i = rhatui_m(0 until rhatui_m.rows, i).toDenseVector
-      val numerator = sims_for_u * rhats_for_i   // maybe to dense vec
-      val denom = sims_for_u * rhats_for_i.mapValues(rhat => if (rhat!=0.0) 1.0 else 0.0)
+    def predict_for_test(ru_arr: Array[Double], rhatui_m: CSCMatrix[Double],  sims_m: CSCMatrix[Double]) = {
+      val pui_m = CSCMatrix.zeros[Double](test.rows, test.cols)  // maybe change to builder
+      for ((k, _) <- test.activeIterator) {
+        val u = k._1
+        val i = k._2
+        val sims_for_u = sims_m(u, 0 until sims_m.cols).t.toDenseVector.t
+        val rhats_for_i = rhatui_m(0 until rhatui_m.rows, i).toDenseVector
+        val numerator = sims_for_u * rhats_for_i   // maybe to dense vec
+        val denom = sims_for_u * rhats_for_i.mapValues(rhat => if (rhat!=0.0) 1.0 else 0.0)
 
-      if (denom != 0.0) {
-        val rbarhat_ui = numerator / denom
-        pui_m(u,i) = ru_arr(u) + rbarhat_ui * scale((ru_arr(u) + rbarhat_ui), ru_arr(u))
-      } else {
-        pui_m(u,i) = ru_arr(u)
+        if (denom != 0.0) {
+          val rbarhat_ui = numerator / denom
+          pui_m(u,i) = ru_arr(u) + rbarhat_ui * scale((ru_arr(u) + rbarhat_ui), ru_arr(u))
+        } else {
+          pui_m(u,i) = ru_arr(u)
+        }
       }
+      pui_m
     }
-    val duration_predict = (System.nanoTime() - t2)/1e9
-    println(f"duration_predict = $duration_predict")
 
+    // *** Q3.2.1 ***
+    println("Compute kNN on train data...")
+    val (ru_arr_k100, rhatui_m_k100, _, sims_m_k100) = knnSims_from_train(k=100)
+    println("Compute predictions on test data...")
+    val pui_m_k100 = predict_for_test(ru_arr_k100, rhatui_m_k100, sims_m_k100)
     // *** calculate MAE ***
-    val mae = sum(abs(pui_m - test))/test.activeSize
-    println(f"mae = ${mae}")
+    val mae_k100 = sum(abs(pui_m_k100 - test))/test.activeSize
 
-    // *** compute pui ***
-//    val rui_builder = new CSCMatrix.Builder[Double](rows=num_u, cols=num_i)
-//    for ((k, _) <- test.activeIterator) {
-//      val u = k._1
-//      val i = k._2
-//      val pui = ru_arr(u) + rbarhat_ui * scale((ru_arr(u)+rbarhat_ui), ru_arr(u))
-//
-//    }
+
+    println("Compute kNN on train data...")
+    val (ru_arr, rhatui_m, _, sims_m) = knnSims_from_train(k=200)
+    println("Compute predictions on test data...")
+    val pui_m = predict_for_test(ru_arr, rhatui_m, sims_m)
+    // *** calculate MAE ***
+    val mae_k200 = sum(abs(pui_m - test))/test.activeSize
+
+
+
+    // *** Q3.2.2, measure the time for computing all knn sims ***
+    var durations_knnSims = Array[Double]()
+    for (i <- 1 to 5) {
+      val t = System.nanoTime()
+      knnSims_from_train(k=200)
+      val du = (System.nanoTime() - t) / 1e3
+      durations_knnSims = durations_knnSims :+ du
+    }
+    // calculate duration stats
+    val knnTimeMin = durations_knnSims.min
+    val knnTimeMax = durations_knnSims.max
+    val knnTimeMean = durations_knnSims.sum/durations_knnSims.length
+    val knnTimeStd = math.sqrt(
+      durations_knnSims.map( t=>(t-knnTimeMean)*(t-knnTimeMean) ).sum / durations_knnSims.size
+    )
+
+    // *** Q3.2.3, measure the time for predictions ***
+    var durations_predict = Array[Double]()
+    for (i <- 1 to 5) {
+      val t = System.nanoTime()
+      predict_for_test(ru_arr, rhatui_m, sims_m)
+      val du = (System.nanoTime() - t) / 1e3
+      durations_predict = durations_predict :+ du
+    }
+    // calculate duration stats
+    val predTimeMin = durations_predict.min
+    val predTimeMax = durations_predict.max
+    val predTimeMean = durations_predict.sum/durations_predict.length
+    val predTimeStd = math.sqrt(
+      durations_predict.map( t=>(t-predTimeMean)*(t-predTimeMean) ).sum / durations_predict.size
+    )
+
 
 
     // Save answers as JSON
@@ -219,23 +241,23 @@ object Predictor {
 
           val answers: Map[String, Any] = Map(
             "Q3.3.1" -> Map(
-              "MaeForK=100" -> 0.0, // Datatype of answer: Double
-              "MaeForK=200" -> 0.0  // Datatype of answer: Double
+              "MaeForK=100" -> mae_k100, // Datatype of answer: Double
+              "MaeForK=200" -> mae_k200 // Datatype of answer: Double
             ),
             "Q3.3.2" ->  Map(
               "DurationInMicrosecForComputingKNN" -> Map(
-                "min" -> 0.0,  // Datatype of answer: Double
-                "max" -> 0.0, // Datatype of answer: Double
-                "average" -> 0.0, // Datatype of answer: Double
-                "stddev" -> 0.0 // Datatype of answer: Double
+                "min" -> knnTimeMin,  // Datatype of answer: Double
+                "max" -> knnTimeMax, // Datatype of answer: Double
+                "average" -> knnTimeMean, // Datatype of answer: Double
+                "stddev" -> knnTimeStd // Datatype of answer: Double
               )
             ),
             "Q3.3.3" ->  Map(
               "DurationInMicrosecForComputingPredictions" -> Map(
-                "min" -> 0.0,  // Datatype of answer: Double
-                "max" -> 0.0, // Datatype of answer: Double
-                "average" -> 0.0, // Datatype of answer: Double
-                "stddev" -> 0.0 // Datatype of answer: Double
+                "min" -> predTimeMin,  // Datatype of answer: Double
+                "max" -> predTimeMax, // Datatype of answer: Double
+                "average" -> predTimeMean, // Datatype of answer: Double
+                "stddev" -> predTimeStd // Datatype of answer: Double
               )
             )
             // Answer the Question 3.3.4 exclusively on the report.
