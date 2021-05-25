@@ -5,18 +5,18 @@
   },
   "Q3.3.2" : {
     "DurationInMicrosecForComputingKNN" : {
-      "min" : 250339.833,
-      "max" : 276198.167,
-      "average" : 259558.5916,
-      "stddev" : 8874.71365508025
+      "min" : 243440.625,
+      "max" : 289561.667,
+      "average" : 262730.9918,
+      "stddev" : 15716.207275243578
     }
   },
   "Q3.3.3" : {
     "DurationInMicrosecForComputingPredictions" : {
-      "min" : 1944222.167,
-      "max" : 2121985.0,
-      "average" : 2011919.9167999998,
-      "stddev" : 62524.86504102782
+      "min" : 1826007.167,
+      "max" : 1862983.083,
+      "average" : 1837848.7584,
+      "stddev" : 13177.588667891387
     }
   }
 }
