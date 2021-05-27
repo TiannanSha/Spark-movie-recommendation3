@@ -197,9 +197,13 @@ object Predictor {
     }
 
     println("Compute kNN on train data...")
-    val (ru_arr, rhatui_m, _, sims_m) = knnSims_from_train(k=200)
+    val t = System.nanoTime()
+    val (ru_arr, rhatui_m, _, sims_m) = knnSims_from_train(k=conf_k)
+    val timeKnn = (System.nanoTime() - t) / 1e3
     println("Compute predictions on test data...")
+    val t2 = System.nanoTime()
     val pui_m = predict_for_test(ru_arr, rhatui_m, sims_m)
+    val timePred = (System.nanoTime() - t) / 1e3
     // *** calculate MAE ***
     val mae_k200 = sum(abs(pui_m - test))/test.activeSize
 
@@ -225,10 +229,10 @@ object Predictor {
             ),
             // Both Q4.1.2 and Q4.1.3 should provide measurement only for a single run
             "Q4.1.2" ->  Map(
-              "DurationInMicrosecForComputingKNN" -> 0.0  // Datatype of answer: Double
+              "DurationInMicrosecForComputingKNN" -> timeKnn  // Datatype of answer: Double
             ),
             "Q4.1.3" ->  Map(
-              "DurationInMicrosecForComputingPredictions" -> 0.0 // Datatype of answer: Double  
+              "DurationInMicrosecForComputingPredictions" -> timePred // Datatype of answer: Double
             )
             // Answer the other questions of 4.1.2 and 4.1.3 in your report
            )
