@@ -203,7 +203,7 @@ object Predictor {
     println("Compute predictions on test data...")
     val t2 = System.nanoTime()
     val pui_m = predict_for_test(ru_arr, rhatui_m, sims_m)
-    val timePred = (System.nanoTime() - t) / 1e3
+    val timePred = (System.nanoTime() - t2) / 1e3
     // *** calculate MAE ***
     val mae_k200 = sum(abs(pui_m - test))/test.activeSize
 
